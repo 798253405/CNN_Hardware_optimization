@@ -13,5 +13,4 @@ ref: https://github.com/yqtaowhu/MachineLearning/blob/master/deep-learning/AlexN
 For conv2d_rewrite:
 Conv2d rewrited in numpy.
 Compared with tf.nn.conv2d, there is an extremly small error of 1e-18.
-That might is due to the different precisions used in numpy and tensorflow. 
-It will be figured out later.
+That difference is partly like 1/3*3=0.999…… ！==    1=1*3/3
