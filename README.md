@@ -12,5 +12,5 @@ ref: https://github.com/yqtaowhu/MachineLearning/blob/master/deep-learning/AlexN
 
 For conv2d_rewrite:
 Conv2d rewrited in numpy.
-Compared with tf.nn.conv2d, there is an extremly small error of 1e-18. It might be due the precison.
+Compared with tf.nn.conv2d, there is an extremly small error of 1e-18. It might be caused by the precison.
 That difference is partly like 1/3x3=0.999…… ！==    1=1x3/3
