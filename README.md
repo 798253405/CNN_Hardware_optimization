@@ -11,7 +11,7 @@ Size of ImageNet2012 dateset is 146 Gb. In this code, only the net was establish
 ref: https://github.com/yqtaowhu/MachineLearning/blob/master/deep-learning/AlexNet/alexNet.py
 
 For conv2d_rewrite:
-conv2d_rewrite with numpy
+conv2d_rewrite with numpy.
 compared with tf.nn.conv2d, there is an extremly small error of 1e-18.
 That might is due to the different precisions used in numpy and tensorflow. 
 It will be figured out later.
