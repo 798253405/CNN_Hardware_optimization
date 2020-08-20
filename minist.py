@@ -1,81 +1,108 @@
-import tensorflow.compat.v1 as tf
-tf.disable_v2_behavior()
-from tensorflow.examples.tutorials.mnist import input_data
+from __future__ import absolute_import, division, print_function, unicode_literals
+from tensorflow.keras import backend
+#from tensorflow.keras.engine.topology import Layer
+import tensorflow as tf
+from tensorflow.keras.layers import Dense, Flatten, Conv2D
+from tensorflow.keras import Model
+import datetime
+#load data
+mnist = tf.keras.datasets.mnist
+(x_train, y_train), (x_test, y_test) = mnist.load_data()
+x_train, x_test = x_train / 255.0, x_test / 255.0#normalizing
+'''
+x_train=tf.cast(x_train, dtype=tf.float16)
+x_test = tf.cast(x_test, dtype=tf.float16)
+y_train= tf.cast(y_train, dtype=tf.float16)
+y_test=tf.cast(y_test, dtype=tf.float16)
+print(y_test.dtype)
+print(x_test.dtype)
+tf.keras.backend.set_floatx('float16')
+'''
+# Add a channels dimension
+x_train = x_train[..., tf.newaxis]#32*32->32*32*1
+x_test = x_test[..., tf.newaxis]
+
+train_ds = tf.data.Dataset.from_tensor_slices(
+    (x_train, y_train)).shuffle(10000).batch(44)
+test_ds = tf.data.Dataset.from_tensor_slices((x_test, y_test)).batch(41)
+
+#
+#print(x_test.type)
+class MyModel(Model):
+  def __init__(self):
+    super(MyModel, self).__init__()
+
+    self.conv1 = Conv2D(32, 3, padding='same', activation='relu')
+
+    self.flatten = Flatten()
+    print(self.flatten.get_weights()    )
+    self.d1 = Dense(128, activation='relu')
+    self.d2 = Dense(10, activation='softmax')
 
 
-def weight_variable(shape):
-	initial = tf.truncated_normal(shape, stddev=0.1)
-	return tf.Variable(initial)
+  def call(self, x):
+    print(x.shape,'input size')
+    x = self.conv1(x)
+   # x=Conv2dd(x)
+    print(x.shape,'afte conv')
+    x = self.flatten(x)
 
-def bias_variable(shape):
-	initial = tf.constant(0.1, shape=shape)
-	return tf.Variable(initial)
+    x = self.d1(x)
+    return self.d2(x)
 
-def conv2d(x, W):
-	return tf.nn.conv2d(x, W, strides=[1, 1, 1, 1], padding='SAME')
+model = MyModel()
 
-def max_pool_2x2(x):
-	return tf.nn.max_pool(x, ksize=[1, 2, 2, 1], strides=[1, 2, 2, 1], padding='SAME')
+loss_object = tf.keras.losses.SparseCategoricalCrossentropy()
 
+optimizer = tf.keras.optimizers.Adam()
 
-mnist = input_data.read_data_sets("/tmp/MNIST_data", one_hot=True)
+train_loss = tf.keras.metrics.Mean(name='train_loss')
+train_accuracy = tf.keras.metrics.SparseCategoricalAccuracy(name='train_accuracy')
 
-x = tf.placeholder(tf.float32, [None, 784])
-W = tf.Variable(tf.zeros([784, 10]))
-b = tf.Variable(tf.zeros([10]))
-y = tf.nn.softmax(tf.matmul(x, W) + b)
-y_ = tf.placeholder(tf.float32, [None, 10])
+test_loss = tf.keras.metrics.Mean(name='test_loss')
+test_accuracy = tf.keras.metrics.SparseCategoricalAccuracy(name='test_accuracy')
 
+@tf.function
+def train_step(images, labels):
+  with tf.GradientTape() as tape:
+    predictions = model(images)
+    loss = loss_object(labels, predictions)
+  gradients = tape.gradient(loss, model.trainable_variables)
+  optimizer.apply_gradients(zip(gradients, model.trainable_variables))
 
-# convolution layer 1
-W_conv1 = weight_variable([5, 5, 1, 32])
-b_conv1 = bias_variable([32])
+  train_loss(loss)
+  train_accuracy(labels, predictions)
 
-x_image = tf.reshape(x, [-1, 28, 28, 1])
+@tf.function
+def test_step(images, labels):
+      predictions = model(images)
+      t_loss = loss_object(labels, predictions)
 
-h_conv1 = tf.nn.relu(conv2d(x_image, W_conv1) + b_conv1)
-h_pool1 = max_pool_2x2(h_conv1)
+      test_loss(t_loss)
+      test_accuracy(labels, predictions)
 
-# convolution layer 2
-W_conv2 = weight_variable([5, 5, 32, 64])
-b_conv2 = bias_variable([64])
-
-h_conv2 = tf.nn.relu(conv2d(h_pool1, W_conv2) + b_conv2)
-h_pool2 = max_pool_2x2(h_conv2)
-
-# full convolution
-W_fc1 = weight_variable([7 * 7 * 64, 1024])
-b_fc1 = bias_variable([1024])
-
-h_pool2_flat = tf.reshape(h_pool2, [-1, 7*7*64])
-h_fc1 = tf.nn.relu(tf.matmul(h_pool2_flat, W_fc1) + b_fc1)
-
-# dropout
-keep_prob = tf.placeholder("float")
-h_fc1_drop = tf.nn.dropout(h_fc1, keep_prob)
-
-# output layer, softmax
-W_fc2 = weight_variable([1024, 10])
-b_fc2 = bias_variable([10])
-
-y_conv=tf.nn.softmax(tf.matmul(h_fc1_drop, W_fc2) + b_fc2)
+EPOCHS = 5
+starttime=datetime.datetime.now()
+for epoch in range(EPOCHS):
+  # before next epoch start，reset evaluation metrcs
+  train_loss.reset_states()
+  train_accuracy.reset_states()
+  test_loss.reset_states()
+  test_accuracy.reset_states()
 
 
-# model training
-cross_entropy = -tf.reduce_sum(y_*tf.log(y_conv))
-train_step = tf.train.AdamOptimizer(1e-4).minimize(cross_entropy)
-correct_prediction = tf.equal(tf.argmax(y_conv,1), tf.argmax(y_,1))
-accuracy = tf.reduce_mean(tf.cast(correct_prediction, "float"))
+  for images, labels in train_ds:
+    train_step(images, labels)
 
-sess = tf.InteractiveSession()
-sess.run(tf.initialize_all_variables())
+  for test_images, test_labels in test_ds:
+    test_step(test_images, test_labels)
 
-for i in range(20000):
-	batch = mnist.train.next_batch(50)
-	if i%100 == 0:
-		train_accuracy = accuracy.eval(feed_dict={x:batch[0], y_: batch[1], keep_prob: 1.0})
-		print("step %d, training accuracy %g"%(i, train_accuracy))
-	train_step.run(feed_dict={x: batch[0], y_: batch[1], keep_prob: 0.5})
-
-print("test accuracy %g"%accuracy.eval(feed_dict={
-	x: mnist.test.images, y_: mnist.test.labels, keep_prob: 1.0}))
+  template = 'Epoch {}, Loss: {}, Accuracy: {}, Test Loss: {}, Test Accuracy: {}'
+  print (template.format(epoch+1,
+                         train_loss.result(),
+                         train_accuracy.result()*100,
+                         test_loss.result(),
+                         test_accuracy.result()*100))
+  oneruntime=datetime.datetime.now()
+  print((oneruntime-starttime).seconds,'time')
+''''''
