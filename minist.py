@@ -46,7 +46,6 @@ class MyModel(Model):
    # x=Conv2dd(x)
     print(x.shape,'afte conv')
     x = self.flatten(x)
-
     x = self.d1(x)
     return self.d2(x)
 
@@ -69,7 +68,6 @@ def train_step(images, labels):
     loss = loss_object(labels, predictions)
   gradients = tape.gradient(loss, model.trainable_variables)
   optimizer.apply_gradients(zip(gradients, model.trainable_variables))
-
   train_loss(loss)
   train_accuracy(labels, predictions)
 
@@ -77,11 +75,10 @@ def train_step(images, labels):
 def test_step(images, labels):
       predictions = model(images)
       t_loss = loss_object(labels, predictions)
-
       test_loss(t_loss)
       test_accuracy(labels, predictions)
 
-EPOCHS = 5
+EPOCHS = 55
 starttime=datetime.datetime.now()
 for epoch in range(EPOCHS):
   # before next epoch start，reset evaluation metrcs
